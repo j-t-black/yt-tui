@@ -13,6 +13,8 @@ authors = [{ name = "jt-black" }]
 keywords = ["youtube", "transcript", "tui", "textual", "slides", "yt-dlp", "ffmpeg"]
 dependencies = [
     "textual>=1.0.0",
+    "textual-image>=0.7.0",
+    "pillow>=10.0",
     "yt-dlp>=2024.1.0",
 ]
 

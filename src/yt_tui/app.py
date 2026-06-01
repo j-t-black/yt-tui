@@ -21,6 +21,8 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Footer, Header, Input, Label, RichLog, Static
 
 from .core import ingest, report, slides, transcript
+from .core.report import slugify
+from .screens import CurationScreen
 
 
 class YtTui(App):
@@ -180,14 +182,34 @@ class YtTui(App):
             return
 
         n = len(result["candidates"])
-        sheets = len(result["contact_sheets"])
+        n_slide = sum(c.klass == "slide" for c in result["candidates"])
         self.call_from_thread(
             self.log_line,
-            f"[green]Slides extracted[/green] → {outdir}\n"
-            f"[dim]{n} candidates across {sheets} contact sheet(s). "
-            f"Review contact_*.png, then curate the keepers.[/dim]",
+            f"[green]Extracted[/green] {n} candidates ({n_slide} look like slides). "
+            "Opening curation…",
         )
-        self.call_from_thread(self.set_buttons, busy=False)
+        self.call_from_thread(self._open_curation, result["candidates"])
+
+    # -- curation -----------------------------------------------------------
+    def _open_curation(self, candidates: list[slides.Candidate]) -> None:
+        """Push the curation screen (must run on the UI thread)."""
+        if not candidates:
+            self.log_line("[yellow]No slide candidates found.[/yellow]")
+            self.set_buttons(busy=False)
+            return
+        title = self.meta.title if self.meta else "video"
+        default_dest = self.reports_dir / f"{slugify(title)} - slides"
+        self.push_screen(CurationScreen(candidates, default_dest), self._on_curated)
+
+    def _on_curated(self, result) -> None:
+        """Callback when the curation screen is dismissed."""
+        if result is None:
+            self.log_line("[dim]Curation cancelled — candidates left in /tmp.[/dim]")
+        else:
+            self.log_line(
+                f"[green]Saved {len(result.saved)} slide(s)[/green] → {result.dest}"
+            )
+        self.set_buttons(busy=False)
 
 
 def run(reports_dir: Path | None = None) -> None:
