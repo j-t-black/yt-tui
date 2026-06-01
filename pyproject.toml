@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yt-tui"
+version = "0.1.0"
+description = "A terminal UI for turning YouTube videos into clean transcripts, tailored markdown reports, and extracted slide decks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "jt-black" }]
+keywords = ["youtube", "transcript", "tui", "textual", "slides", "yt-dlp", "ffmpeg"]
+dependencies = [
+    "textual>=1.0.0",
+    "yt-dlp>=2024.1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "textual-dev>=1.5"]
+
+[project.scripts]
+yt-tui = "yt_tui.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/j-t-black/yt-tui"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yt_tui"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

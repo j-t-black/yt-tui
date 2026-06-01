@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# yt-tui working output (downloads, frames, scratch)
+output/
+*.mp4
+*.webm
+*.part
+*.srt
+*.info.json
+
+# OS
+.DS_Store
