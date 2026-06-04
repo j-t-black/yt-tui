@@ -1,3 +1,4 @@
+<img width="930" height="344" alt="yt-tui" src="https://github.com/user-attachments/assets/9a51cbe3-f6a4-4fb2-a2c5-2dc2215bc27b" />
 # yt-tui
 
 A terminal UI for turning YouTube videos into clean transcripts, tailored markdown
