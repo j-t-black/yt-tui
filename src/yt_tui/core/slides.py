@@ -219,6 +219,58 @@ def dedupe_by_hash(hashes: list[int], threshold: int = 6) -> list[int]:
     return kept
 
 
+def sample_frames(video: Path, outdir: Path, interval_seconds: int = 15,
+                  progress: ProgressFn | None = None) -> list[Candidate]:
+    """Fallback when scene detection is empty: sample one frame every
+    `interval_seconds`, drop consecutive near-duplicates (content-region aHash),
+    and return the survivors as slide candidates. Used for crossfade / animated /
+    scrolling decks that have no hard cuts.
+    """
+    _require("ffmpeg")
+    candidates_dir = outdir / "candidates"
+    slides_dir = outdir / "slides"
+    candidates_dir.mkdir(parents=True, exist_ok=True)
+    slides_dir.mkdir(exist_ok=True)
+    # Clear any thin scene-detection output so it can't pollute contact sheets.
+    for d in (candidates_dir, slides_dir):
+        for f in d.glob("*.png"):
+            f.unlink()
+
+    _log(progress, f"sampling one frame every {interval_seconds}s...")
+    raw_pattern = str(candidates_dir / "_raw_%04d.png")
+    proc = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-i", str(video),
+         "-vf", f"fps=1/{interval_seconds},showinfo,scale=1920:-1",
+         "-vsync", "vfr", raw_pattern],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise SlideError(f"frame sampling failed:\n{proc.stderr.strip()[-500:]}")
+
+    pts = [float(x) for x in _PTS.findall(proc.stderr)]
+    raw_frames = sorted(candidates_dir.glob("_raw_*.png"))
+    if not raw_frames:
+        return []
+
+    _log(progress, f"deduping {len(raw_frames)} sampled frames...")
+    hashes = [_ahash(f) for f in raw_frames]
+    keep = dedupe_by_hash(hashes)
+
+    candidates: list[Candidate] = []
+    for new_i, raw_i in enumerate(keep):
+        sec = int(pts[raw_i]) if raw_i < len(pts) else raw_i * interval_seconds
+        m, s = divmod(sec, 60)
+        named = candidates_dir / f"{new_i:03d}_{m:02d}-{s:02d}.png"
+        raw_frames[raw_i].rename(named)
+        (slides_dir / named.name).write_bytes(named.read_bytes())
+        candidates.append(Candidate(index=new_i, path=named, seconds=sec, klass="slide"))
+
+    for leftover in candidates_dir.glob("_raw_*.png"):   # dropped duplicates
+        leftover.unlink()
+    _log(progress, f"{len(candidates)} distinct slides kept (from {len(raw_frames)} samples)")
+    return candidates
+
+
 def extract(url_or_file: str, outdir: Path, max_height: int = 1080,
             threshold: float = 0.3, progress: ProgressFn | None = None) -> dict:
     """Full pipeline. Returns paths to the working set for the curation step."""
