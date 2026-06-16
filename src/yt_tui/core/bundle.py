@@ -28,3 +28,46 @@ def extract_description_links(description: str) -> list[dict]:
         seen.add(url)
         out.append({"text": url, "url": url})
     return out
+
+
+def _chapter_rows(meta: VideoMeta) -> list[tuple[str, str]]:
+    rows = []
+    for ch in meta.chapters:
+        sec = int(ch.get("start_time", 0))
+        rows.append((f"{sec // 60}:{sec % 60:02d}", ch.get("title", "")))
+    return rows
+
+
+def build_extracted_md(meta: VideoMeta, url: str, segments: list[Segment],
+                       slide_rows: list[tuple[str, str]],
+                       fetched_at: str) -> str:
+    """Render the ingester's extracted.md: title, Source/Fetched, then body.
+
+    `slide_rows` is (display_mmss, relative_png_path); empty omits the section.
+    """
+    lines = [
+        f"# {meta.title}",
+        "",
+        f"> Source: {url}",
+        f"> Fetched: {fetched_at}",
+        "",
+        f"**Channel:** {meta.channel} · **Duration:** {meta.duration_string} · "
+        f"**Uploaded:** {meta.upload_date_iso} · **Views:** {meta.view_count:,}",
+        "",
+        "## Overview",
+        "",
+        meta.description.strip() if meta.description else "_No description available._",
+        "",
+    ]
+    chapters = _chapter_rows(meta)
+    if chapters:
+        lines += ["## Chapters", ""]
+        lines += [f"- **{ts}** — {label}" for ts, label in chapters]
+        lines.append("")
+    if slide_rows:
+        lines += ["## Slides", ""]
+        lines += [f"- ![]({path}) {disp}" for disp, path in slide_rows]
+        lines.append("")
+    body = timestamped(segments) if segments else "_No transcript available._"
+    lines += ["## Transcript", "", body, ""]
+    return "\n".join(lines)
