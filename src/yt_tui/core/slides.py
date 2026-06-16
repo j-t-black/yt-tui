@@ -20,6 +20,8 @@ from pathlib import Path
 from shutil import which
 from typing import Callable
 
+from PIL import Image
+
 ProgressFn = Callable[[str], None]
 
 
@@ -183,6 +185,24 @@ def write_manifest(candidates: list[Candidate], outdir: Path) -> Path:
 
 def _hamming(a: int, b: int) -> int:
     return (a ^ b).bit_count()
+
+
+def _ahash(frame: Path, hash_size: int = 16) -> int:
+    """Average hash of a frame's center content region (top 15% / bottom 8%
+    cropped out to ignore animated banners and caption strips). Returns a
+    `hash_size**2`-bit int. Comparison-only — callers still keep the full frame.
+    """
+    with Image.open(frame) as im:
+        w, h = im.size
+        crop = im.crop((0, int(h * 0.15), w, int(h * 0.92)))
+        small = crop.convert("L").resize((hash_size, hash_size), Image.BILINEAR)
+    px = list(small.getdata())
+    avg = sum(px) / len(px)
+    bits = 0
+    for i, p in enumerate(px):
+        if p >= avg:
+            bits |= 1 << i
+    return bits
 
 
 def dedupe_by_hash(hashes: list[int], threshold: int = 6) -> list[int]:
