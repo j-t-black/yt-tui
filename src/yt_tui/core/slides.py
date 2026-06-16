@@ -181,6 +181,24 @@ def write_manifest(candidates: list[Candidate], outdir: Path) -> Path:
     return path
 
 
+def _hamming(a: int, b: int) -> int:
+    return (a ^ b).bit_count()
+
+
+def dedupe_by_hash(hashes: list[int], threshold: int = 6) -> list[int]:
+    """Indices to keep: the first frame, then any frame whose Hamming distance
+    from the last *kept* hash exceeds `threshold`. Keep-on-doubt — a frame is
+    dropped only when it is within `threshold` bits of the last kept frame.
+    """
+    kept: list[int] = []
+    last: int | None = None
+    for i, h in enumerate(hashes):
+        if last is None or _hamming(h, last) > threshold:
+            kept.append(i)
+            last = h
+    return kept
+
+
 def extract(url_or_file: str, outdir: Path, max_height: int = 1080,
             threshold: float = 0.3, progress: ProgressFn | None = None) -> dict:
     """Full pipeline. Returns paths to the working set for the curation step."""
