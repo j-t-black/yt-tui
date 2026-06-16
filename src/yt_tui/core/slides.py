@@ -272,7 +272,8 @@ def sample_frames(video: Path, outdir: Path, interval_seconds: int = 15,
 
 
 def extract(url_or_file: str, outdir: Path, max_height: int = 1080,
-            threshold: float = 0.3, progress: ProgressFn | None = None) -> dict:
+            threshold: float = 0.3, interval: int = 15, min_candidates: int = 5,
+            progress: ProgressFn | None = None) -> dict:
     """Full pipeline. Returns paths to the working set for the curation step."""
     outdir.mkdir(parents=True, exist_ok=True)
     if re.match(r"^https?://", url_or_file):
@@ -283,6 +284,10 @@ def extract(url_or_file: str, outdir: Path, max_height: int = 1080,
             raise SlideError(f"file not found: {video}")
 
     candidates = detect_and_classify(video, outdir, threshold, progress)
+    if len(candidates) < min_candidates:
+        _log(progress, f"only {len(candidates)} scene cuts found; "
+                       f"falling back to interval sampling")
+        candidates = sample_frames(video, outdir, interval, progress)
     sheets = build_contact_sheets(candidates, outdir, progress=progress)
     manifest = write_manifest(candidates, outdir)
     _log(progress, "done -- review the contact sheets, then curate the keepers")

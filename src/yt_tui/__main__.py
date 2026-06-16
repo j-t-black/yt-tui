@@ -28,6 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     p_sl.add_argument("url")
     p_sl.add_argument("--out", type=Path, default=Path("./output/slides"))
     p_sl.add_argument("--max-height", type=int, default=1080)
+    p_sl.add_argument("--sample-interval", type=int, default=15,
+                      help="fallback frame sampling interval in seconds")
 
     p_ing = sub.add_parser("ingest", help="write an ingester bundle for a URL")
     p_ing.add_argument("url")
@@ -36,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     p_ing.add_argument("--no-slides", action="store_true",
                        help="skip slide extraction (faster; no video download)")
     p_ing.add_argument("--max-height", type=int, default=1080)
+    p_ing.add_argument("--sample-interval", type=int, default=15,
+                       help="fallback frame sampling interval in seconds")
 
     args = parser.parse_args(argv)
 
@@ -63,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "slides":
         result = slides.extract(args.url, args.out, max_height=args.max_height,
+                                interval=args.sample_interval,
                                 progress=lambda m: print(f"  {m}"))
         print(f"\n{len(result['candidates'])} candidates → {args.out}")
         print("Review contact_*.png, then curate the keepers.")
@@ -82,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.no_slides:
             res = slides_mod.extract(args.url, Path("/tmp/yt-tui/slides"),
                                      max_height=args.max_height,
+                                     interval=args.sample_interval,
                                      progress=lambda m: print(f"  {m}"))
             kept = [c for c in res["candidates"] if c.klass == "slide"]
 
