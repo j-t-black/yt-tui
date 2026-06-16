@@ -61,3 +61,28 @@ def test_build_extracted_md_handles_missing_transcript_and_chapters():
     assert "_No transcript available._" in md
     assert "## Chapters" not in md                  # omitted when no chapters
     assert "_No description available._" in md
+
+
+def test_build_metadata_has_fetchpy_keys_and_youtube_extras():
+    segs = [Segment(0.0, "two words")]
+    meta = bundle.build_metadata(
+        _meta(), "https://youtu.be/abc123", segs,
+        fetched_at="2026-06-16T00:00:00+00:00",
+    )
+    # fetch.py contract keys the ingester relies on:
+    for key in ("source_url", "final_url", "canonical_url", "title", "site_name",
+                "author", "description", "published", "fetched_at", "depth",
+                "pages", "links_in_scope", "links_external"):
+        assert key in meta, key
+    assert meta["site_name"] == "YouTube"
+    assert meta["author"] == "Confy"
+    assert meta["published"] == "2026-06-01"
+    assert meta["depth"] == 0
+    assert meta["pages"][0]["role"] == "main"
+    assert meta["pages"][0]["words"] == 2
+    assert meta["links_external"] == [{"text": "https://example.com/x",
+                                       "url": "https://example.com/x"}]
+    # youtube extras:
+    assert meta["video_id"] == "abc123"
+    assert meta["view_count"] == 1234
+    assert meta["chapters"]

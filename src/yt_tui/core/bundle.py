@@ -71,3 +71,29 @@ def build_extracted_md(meta: VideoMeta, url: str, segments: list[Segment],
     body = timestamped(segments) if segments else "_No transcript available._"
     lines += ["## Transcript", "", body, ""]
     return "\n".join(lines)
+
+
+def build_metadata(meta: VideoMeta, url: str, segments: list[Segment],
+                   fetched_at: str) -> dict:
+    """Map VideoMeta onto fetch.py's metadata schema (+ harmless youtube extras)."""
+    words = sum(len(s.text.split()) for s in segments)
+    return {
+        "source_url": url,
+        "final_url": url,
+        "canonical_url": None,
+        "title": meta.title,
+        "site_name": "YouTube",
+        "author": meta.channel,
+        "description": meta.description,
+        "published": meta.upload_date_iso,
+        "fetched_at": fetched_at,
+        "depth": 0,
+        "pages": [{"url": url, "title": meta.title,
+                   "file": "raw/000-info.json", "words": words, "role": "main"}],
+        "links_in_scope": [],
+        "links_external": extract_description_links(meta.description),
+        "video_id": meta.video_id,
+        "duration": meta.duration_string,
+        "view_count": meta.view_count,
+        "chapters": meta.chapters,
+    }
