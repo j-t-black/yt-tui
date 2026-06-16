@@ -89,9 +89,10 @@ def main(argv: list[str] | None = None) -> int:
         fetched_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         result = bundle.write_bundle(meta, args.url, segs, kept, fetched_at, out)
 
+        slides_line = "skipped (--no-slides)" if args.no_slides else f"{len(kept)} kept"
         print(f"\nOK  {meta.title}")
         print(f"    out dir : {result['out_dir']}")
-        print(f"    slides  : {len(kept)} kept" if kept else "    slides  : skipped")
+        print(f"    slides  : {slides_line}")
         print(f"    READ    : {result['extracted_md']}")
         return 0
 
