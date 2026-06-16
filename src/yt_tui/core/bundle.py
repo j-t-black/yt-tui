@@ -97,3 +97,35 @@ def build_metadata(meta: VideoMeta, url: str, segments: list[Segment],
         "view_count": meta.view_count,
         "chapters": meta.chapters,
     }
+
+
+def write_bundle(meta: VideoMeta, url: str, segments: list[Segment],
+                 kept_slides: list, fetched_at: str, out_dir: Path) -> dict:
+    """Write extracted.md + metadata.json + raw/ for the ingester. Returns paths."""
+    raw = out_dir / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+
+    if meta.info_json_path and meta.info_json_path.exists():
+        (raw / "000-info.json").write_bytes(meta.info_json_path.read_bytes())
+    if meta.srt_path and meta.srt_path.exists():
+        (raw / "000-captions.srt").write_bytes(meta.srt_path.read_bytes())
+
+    slide_rows: list[tuple[str, str]] = []
+    if kept_slides:
+        sdir = raw / "slides"
+        sdir.mkdir(exist_ok=True)
+        for c in sorted(kept_slides, key=lambda x: x.seconds):
+            name = f"{c.seconds // 60:02d}-{c.seconds % 60:02d}.png"
+            dest = sdir / name
+            if dest.exists():
+                name = f"{c.seconds // 60:02d}-{c.seconds % 60:02d}_{c.index:03d}.png"
+                dest = sdir / name
+            dest.write_bytes(c.path.read_bytes())
+            slide_rows.append((f"{c.seconds // 60}:{c.seconds % 60:02d}",
+                               f"raw/slides/{name}"))
+
+    md = build_extracted_md(meta, url, segments, slide_rows, fetched_at)
+    metadata = build_metadata(meta, url, segments, fetched_at)
+    (out_dir / "extracted.md").write_text(md)
+    (out_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+    return {"out_dir": out_dir, "extracted_md": out_dir / "extracted.md"}

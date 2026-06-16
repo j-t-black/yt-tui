@@ -1,5 +1,7 @@
 """Tests for the ingester bundle builder."""
 
+import json as _json
+
 from yt_tui.core import bundle
 from yt_tui.core.ingest import VideoMeta
 from yt_tui.core.transcript import Segment
@@ -86,3 +88,46 @@ def test_build_metadata_has_fetchpy_keys_and_youtube_extras():
     assert meta["video_id"] == "abc123"
     assert meta["view_count"] == 1234
     assert meta["chapters"]
+
+
+def test_write_bundle_lays_out_files_and_copies_raw(tmp_path):
+    # fake the yt-dlp artifacts VideoMeta points at
+    info = tmp_path / "abc123.info.json"
+    info.write_text('{"id": "abc123"}')
+    srt = tmp_path / "abc123.en.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:02,000\nhi\n")
+    meta = _meta(info_json_path=info, srt_path=srt)
+
+    # one kept slide (Candidate-like): reuse the real Candidate
+    from yt_tui.core.slides import Candidate
+    frame = tmp_path / "000_03-12.png"
+    frame.write_bytes(b"PNG")
+    kept = [Candidate(index=0, path=frame, seconds=192, klass="slide")]
+
+    out = tmp_path / "ingest" / "my-great-talk"
+    result = bundle.write_bundle(
+        meta, "https://youtu.be/abc123",
+        [Segment(0.0, "hi there")], kept,
+        fetched_at="2026-06-16T00:00:00+00:00", out_dir=out,
+    )
+
+    assert (out / "extracted.md").exists()
+    md = (out / "extracted.md").read_text()
+    assert "## Slides" in md and "raw/slides/03-12.png" in md
+    md_json = _json.loads((out / "metadata.json").read_text())
+    assert md_json["video_id"] == "abc123"
+    assert (out / "raw" / "000-info.json").read_text() == '{"id": "abc123"}'
+    assert (out / "raw" / "000-captions.srt").exists()
+    assert (out / "raw" / "slides" / "03-12.png").read_bytes() == b"PNG"
+    assert result["extracted_md"] == out / "extracted.md"
+    assert result["out_dir"] == out
+
+
+def test_write_bundle_no_slides(tmp_path):
+    info = tmp_path / "x.info.json"; info.write_text("{}")
+    meta = _meta(info_json_path=info, srt_path=None)
+    out = tmp_path / "o"
+    bundle.write_bundle(meta, "https://youtu.be/x", [], [],
+                        fetched_at="2026-06-16T00:00:00+00:00", out_dir=out)
+    assert not (out / "raw" / "slides").exists()
+    assert "## Slides" not in (out / "extracted.md").read_text()
