@@ -57,12 +57,18 @@ Handy for scripting:
 yt-tui transcript "https://youtube.com/watch?v=..."     # print cleaned transcript
 yt-tui report     "https://youtube.com/watch?v=..."     # write a markdown report
 yt-tui slides     "https://youtube.com/watch?v=..." --out ./output/slides
+yt-tui ingest     "https://youtube.com/watch?v=..."     # write an ingester bundle
 ```
 
 After `slides`, open the `contact_*.png` grids it produced, pick the genuinely
 unique slides (scene detection over-captures camera cuts and demo motion), and
 copy the keepers out with descriptive `MM-SS_topic.png` names. `manifest.tsv` maps
 every candidate frame to its timestamp.
+
+`ingest` writes an ingester-native bundle (`extracted.md` + `metadata.json` +
+`raw/`) to `/tmp/ingest/<slug>` (override with `--out`), turning a video into a
+first-class source for the `/ingest` skill. Slides are extracted by default; pass
+`--no-slides` to skip the video download for a faster, transcript-only bundle.
 
 ## Layout
 
